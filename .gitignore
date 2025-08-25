@@ -1,0 +1,50 @@
+# Arquivo .gitignore para Terraform, C# (.NET), Rider e Visual Studio
+
+## IDEs (Visual Studio & JetBrains Rider)
+# Ignora arquivos de configuração e cache específicos do usuário para evitar conflitos.
+.vs/
+.idea/
+*.suo
+*.user
+*.DotSettings.user
+
+## C# / .NET
+# Ignora os diretórios de compilação e outros artefatos gerados pelo build.
+[Bb]in/
+[Oo]bj/
+TestResults/
+
+# Ignora pacotes NuGet gerados localmente.
+*.[nN]upkg
+# Ignora arquivos de cache de pacotes (para projetos mais antigos que usam packages.config).
+packages/
+
+# Ignora arquivos de publicação que podem conter informações sensíveis.
+*.Publish.xml
+*.pubxml.user
+
+## Terraform
+# Ignora o diretório onde o Terraform baixa providers e módulos.
+.terraform/
+
+# Arquivos de estado locais. É uma MÁ PRÁTICA versionar o estado no Git.
+# Use um backend remoto (S3, Azure Blob, Terraform Cloud) para segurança e colaboração.
+*.tfstate
+*.tfstate.backup
+
+# Ignora planos de execução, que podem conter dados sensíveis.
+*.tfplan
+
+# Ignora arquivos de log de crash e configurações locais da CLI.
+crash.log
+crash.*.log
+.terraformrc
+terraform.rc
+
+# Ignora arquivos de override, usados para alterações locais temporárias.
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
