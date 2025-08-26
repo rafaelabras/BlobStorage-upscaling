@@ -4,11 +4,28 @@ using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 1 * 1024 * 1024; // Limite máximo de 1mb para evitar envios de imagens grandes
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowLocalhost", policy =>
+    {
+        policy.WithOrigins("http://127.0.0.1:5500") // origem do seu front
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseCors("AllowLocalhost");
 
 if (app.Environment.IsDevelopment())
 {
@@ -16,12 +33,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-builder.Services.Configure<FormOptions>(options =>
-{
-    
-    options.MultipartBodyLengthLimit = 1 * 1024 * 1024; // Limite máximo de 1mb para evitar envios de imagens grandes
-    
-});
 
 app.MapPost("/PostImageS3", async (IFormFile file) =>
 {
