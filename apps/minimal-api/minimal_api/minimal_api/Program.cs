@@ -1,6 +1,13 @@
 using System.Net.Mime;
 using System.Text;
+using Azure.Identity;
+using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using minimal_api;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +26,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-
+builder.Services.AddSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -33,9 +40,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.MapHub<myHub>("/connection");
 
-app.MapPost("/PostImageS3", async (IFormFile file) =>
+app.MapPost("/PostImageBlob", async (HttpRequest request
+    ,IFormFile file,
+    IHubContext<myHub> hubContext) =>
 {
+    if (!(request.Headers.TryGetValue("X-Connection-Id", out var ConnectionIdValues)))
+    {
+        return Results.BadRequest("Header 'X-Connection-Id' não encontrado.");
+    }
+
+    var connectionId = ConnectionIdValues.FirstOrDefault();
+    
+    
     if (file == null || file.Length == 0)
         return Results.BadRequest("Nenhum arquivo foi enviado.");
     
@@ -49,12 +67,26 @@ app.MapPost("/PostImageS3", async (IFormFile file) =>
     
     var extension = Path.GetExtension(file.FileName);
     var guidFileName = $"{fileName}-{Guid.NewGuid()}{extension}";
+
+    hubContext.Groups.AddToGroupAsync(connectionId, guidFileName);
     
-    Directory.CreateDirectory("uploads");
-    var uploadPath = Path.Combine("uploads", guidFileName);
+    var blobServiceCliente = new BlobServiceClient(
+        new Uri("AzureStorage:BlobServiceUri"),
+        new DefaultAzureCredential());
+
+    string containerName = "AzureStorage:ContainerName";
+
+    BlobContainerClient containerClient = blobServiceCliente.GetBlobContainerClient(containerName);
     
-    using var stream = File.OpenWrite(uploadPath);
-    await file.CopyToAsync(stream);
+    BlobClient blobClient = containerClient.GetBlobClient(guidFileName);
+
+    var metaData = new Dictionary<string, string>
+    {
+        { "signalr_connection_id", connectionId}
+    };
+        
+        
+    await blobClient.UploadAsync(file.OpenReadStream(), new BlobUploadOptions {Metadata = metaData});
     
     return Results.Ok("Imagem enviada com suceso.");
     

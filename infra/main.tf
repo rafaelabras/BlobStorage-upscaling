@@ -1,33 +1,33 @@
 resource "azurerm_resource_group" "upscaling" {
   name     = "rg-upscaling"
-  location = var.location_resource 
+  location = var.location_resource
 }
 
 resource "azurerm_network_security_group" "vnet_upscaling_sg" {
-    name                = "nsg-upscaling"
-    location            = var.location_resource
-    resource_group_name = azurerm_resource_group.upscaling.name
+  name                = "nsg-upscaling"
+  location            = var.location_resource
+  resource_group_name = azurerm_resource_group.upscaling.name
 
-    security_rule {
-        name                       = "Allow-HTTP"
-        priority                   = 100
-        direction                  = "Inbound"
-        access                     = "Allow"
-        protocol                   = "Tcp"
-        source_port_range          = "*"
-        destination_port_range     = "80"
-        source_address_prefix      = "*"
-        destination_address_prefix = "*"
-    }
+  security_rule {
+    name                       = "Allow-HTTP"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "80"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
 
 
 }
 
-resource "azurerm_virtual_network" "vnet_upscaling"{
-  name = "vnet-upscaling"
-  location = var.location_resource
+resource "azurerm_virtual_network" "vnet_upscaling" {
+  name                = "vnet-upscaling"
+  location            = var.location_resource
   resource_group_name = azurerm_resource_group.upscaling.name
-  address_space = ["10.0.0.0/26"]
+  address_space       = ["10.0.0.0/26"]
 }
 
 resource "azurerm_subnet" "subnet_upscaling" {
@@ -38,29 +38,29 @@ resource "azurerm_subnet" "subnet_upscaling" {
 }
 
 resource "azurerm_subnet_network_security_group_association" "subnet_nsg_association" {
-    subnet_id                 = azurerm_subnet.subnet_upscaling.id
-    network_security_group_id = azurerm_network_security_group.vnet_upscaling_sg.id
+  subnet_id                 = azurerm_subnet.subnet_upscaling.id
+  network_security_group_id = azurerm_network_security_group.vnet_upscaling_sg.id
 }
 
 resource "azurerm_public_ip" "public_ip_upscaling_vm" {
-    name                = "pip-upscaling-vm"
-    location            = var.location_resource
-    resource_group_name = azurerm_resource_group.upscaling.name
-    allocation_method   = "Static"
+  name                = "pip-upscaling-vm"
+  location            = var.location_resource
+  resource_group_name = azurerm_resource_group.upscaling.name
+  allocation_method   = "Static"
 }
 
 resource "azurerm_network_interface" "vm_nic" {
-    name                = "nic-upscaling"
-    location            = var.location_resource
-    resource_group_name = azurerm_resource_group.upscaling.name
-    
-    ip_configuration {
-        name                          = "internal-ip-nic-upscaling"
-        subnet_id                     = azurerm_subnet.subnet_upscaling.id
-        private_ip_address_allocation = "Dynamic"
-        public_ip_address_id          = azurerm_public_ip.public_ip_upscaling_vm.id
-    }
-  
+  name                = "nic-upscaling"
+  location            = var.location_resource
+  resource_group_name = azurerm_resource_group.upscaling.name
+
+  ip_configuration {
+    name                          = "internal-ip-nic-upscaling"
+    subnet_id                     = azurerm_subnet.subnet_upscaling.id
+    private_ip_address_allocation = "Dynamic"
+    public_ip_address_id          = azurerm_public_ip.public_ip_upscaling_vm.id
+  }
+
 }
 
 resource "azurerm_linux_virtual_machine" "front-back-app" {
@@ -90,35 +90,42 @@ resource "azurerm_linux_virtual_machine" "front-back-app" {
     version   = "latest"
   }
 
-  custom_data = base64encode(file("${path.module}/../shell-scripts/install_nginx.sh"))
+  custom_data = base64encode(file("${path.module}/../shell-scripts/setup.sh"))
 
-  
-}
+    connection {
+      type        = "ssh"
+      user        = "adminuser"
+      private_key = file("C:/Users/rafae/.ssh/id_rsa")
+      host        = azurerm_public_ip.public_ip_upscaling_vm.ip_address
+    }
+    
+ }
+
 
 
 resource "azurerm_storage_account" "upscaling_storage" {
-  name                     = "upscalingstorageacc"
+  name                     = "upscalingstorageacc912"
   resource_group_name      = azurerm_resource_group.upscaling.name
   location                 = var.location_resource
   account_tier             = "Standard"
   account_replication_type = "LRS"
 
   network_rules {
-    default_action = "Allow"
-    ip_rules = ["0.0.0.0/0"]
+    default_action             = "Allow"
+    ip_rules                   = ["0.0.0.0/0"]
     virtual_network_subnet_ids = azurerm_subnet.subnet_upscaling.id
   }
-  
+
 }
 
 resource "azurerm_storage_container" "image_upload_upscaling" {
-  name                  = "container-image-upload"
+  name                  = "container-image-1uploadfor-upscalingpj"
   storage_account_name  = azurerm_storage_account.upscaling_storage.name
   container_access_type = "blob"
 }
 
 resource "azurerm_storage_container" "image_return_upscaled" {
-  name                  = "container-image-return"
+  name                  = "container-image-1returnfor-upscalingpj"
   storage_account_name  = azurerm_storage_account.upscaling_storage.name
   container_access_type = "private"
 }
@@ -134,42 +141,42 @@ resource "azurerm_service_plan" "function_app_plan" {
 
 
 resource "azurerm_windows_function_app" "function_comunicate" {
-  name = "func-upscaling-app"
+  name                = "func-upscaling-app"
   resource_group_name = azurerm_resource_group.upscaling.name
-  location = var.location_resource
+  location            = var.location_resource
 
-  storage_account_name = azurerm_storage_account.upscaling_storage.name
+  storage_account_name       = azurerm_storage_account.upscaling_storage.name
   storage_account_access_key = azurerm_storage_account.upscaling_storage.primary_access_key
-  service_plan_id = azurerm_service_plan.function_app_plan.id
+  service_plan_id            = azurerm_service_plan.function_app_plan.id
 
   site_config {
-    application_stack {
-      dotnet_version = "v8"
-    }
+   ## application_stack {
+   ##   dotnet_version = "v8.0"
+   ## }
 
     ## ip_restriction {
     ##   name       = "Allow vm"
     ##   action     = "Allow"
     ## ip_address = "${azurerm_linux_virtual_machine.front-back-app.private_ip_address}"
     ##  } 
-        ## NÃO É POSSÍVEL RESTRINGIR PELO IP DEVIDO AO SERVICE PLAN SER GRATUITO (F1)
+    ## NÃO É POSSÍVEL RESTRINGIR PELO IP DEVIDO AO SERVICE PLAN SER GRATUITO (F1)
   }
 }
 
 resource "azurerm_eventgrid_system_topic" "system_topic" {
-  name                = "eg-system-topic-upscaling"
-  resource_group_name = azurerm_resource_group.upscaling.name
-  location            = var.location_resource
-  topic_type         = "Microsoft.Storage.Containers"
+  name                   = "eg-system-topic-upscaling"
+  resource_group_name    = azurerm_resource_group.upscaling.name
+  location               = var.location_resource
+  topic_type             = "Microsoft.Storage.Containers"
   source_arm_resource_id = azurerm_storage_container.image_upload_upscaling.id
 }
 
 resource "azurerm_eventgrid_system_topic_event_subscription" "trigger_system_topic_blobstorage" {
-  name = "eg-subscription-trigger-upscaling"
+  name                = "eg-subscription-trigger-upscaling"
   resource_group_name = azurerm_resource_group.upscaling.name
-  system_topic = azurerm_eventgrid_system_topic.system_topic.id
+  system_topic        = azurerm_eventgrid_system_topic.system_topic.id
 
-   azure_function_endpoint {
+  azure_function_endpoint {
     function_id = azurerm_windows_function_app.function_comunicate.id
   }
 
@@ -179,8 +186,8 @@ resource "azurerm_eventgrid_system_topic_event_subscription" "trigger_system_top
 }
 
 resource "azurerm_signalr_service" "signalR" {
-  name = "signalr-upscaling"
-  location = var.location_resource
+  name                = "signalr-upscaling"
+  location            = var.location_resource
   resource_group_name = azurerm_resource_group.upscaling.name
   sku {
     name     = "Free_F1"
@@ -189,12 +196,12 @@ resource "azurerm_signalr_service" "signalR" {
 
 
   cors {
-    allowed_origins = ["http://${azurerm_public_ip.public_ip_upscaling_vm.ip_address}", 
+    allowed_origins = ["http://${azurerm_public_ip.public_ip_upscaling_vm.ip_address}",
     "https://${azurerm_public_ip.public_ip_upscaling_vm.ip_address}"]
   }
 
   connectivity_logs_enabled = true
-  messaging_logs_enabled = true
-  service_mode = "Default"
+  messaging_logs_enabled    = true
+  service_mode              = "Default"
 
 }
