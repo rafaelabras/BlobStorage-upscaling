@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Azure.SignalR.Management;
 using minimal_api;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,7 +27,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddSignalR();
+builder.Services.AddSignalR().AddAzureSignalR();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -84,9 +85,16 @@ app.MapPost("/PostImageBlob", async (HttpRequest request
     {
         { "signalr_connection_id", connectionId}
     };
-        
+
+    ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+    {
+        builder.AddConsole();
+        builder.SetMinimumLevel(LogLevel.Information);
+    });
         
     await blobClient.UploadAsync(file.OpenReadStream(), new BlobUploadOptions {Metadata = metaData});
+    
+     
     
     return Results.Ok("Imagem enviada com suceso.");
     
