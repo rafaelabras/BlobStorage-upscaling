@@ -5,8 +5,18 @@ const connection = new signalR.HubConnectionBuilder()
 
 async function startSignalR() {
     try {
-        await connection.start();
+           await connection.start();
         console.log("SignalR Conectado! ID da Conexão: " + connection.connectionId);
+
+        connection.on("imageProcessed", (imageUrl) => {
+        console.log("Imagem processada recebida: " + imageUrl);
+
+        const status = document.getElementById("status");
+        status.innerHTML = `Processamento concluído! <a href="${imageUrl}" target="_blank">Clique aqui para ver sua imagem</a>`;
+        status.style.color = "darkblue";
+
+        document.getElementById("uploadBtn").disabled = false;
+    });
     } catch (err) {
         console.error("Falha ao conectar com o SignalR", err);
         setTimeout(startSignalR, 5000);

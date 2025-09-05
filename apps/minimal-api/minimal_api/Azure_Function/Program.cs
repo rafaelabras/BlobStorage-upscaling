@@ -7,7 +7,9 @@ using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Google.Protobuf.Reflection;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;using Microsoft.Azure.Functions.Worker;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -26,20 +28,25 @@ builder.Services
     .AddApplicationInsightsTelemetryWorkerService()
     .ConfigureFunctionsApplicationInsights();
 
+builder.Build().Run();
+
+
 public class UpscaleImage
 {
     private readonly ILogger<UpscaleImage> _logger;
-    private readonly ImageResizer _imageResizer;
-
-    public UpscaleImage(ILogger<UpscaleImage> logger)
+    private readonly IImageResizer _imageResizer;
+    
+            
+    public UpscaleImage(ILogger<UpscaleImage> logger, IImageResizer imageResizer)
     {
+        _imageResizer = imageResizer;
         _logger = logger;
     }
-
+    
     [Function("UpscaleImage")]
     public async Task Run([EventGridTrigger] EventGridEvent eventGridEvent)
     {
-
+        
         _logger.LogInformation("Evento recebido: {type}, Subject: {subject}", eventGridEvent.EventType,
             eventGridEvent.Subject);
 
@@ -71,7 +78,14 @@ public class UpscaleImage
         BlobServiceClient client = new BlobServiceClient(new Uri("https://upscalingstorageacc921.blob.core.windows.net"), new DefaultAzureCredential());
         BlobContainerClient containerClient = client.GetBlobContainerClient("container-image-1returnfor-upscalingpj");
         
-       
+        var connectionString = Environment.GetEnvironmentVariable("AzureSignalRConnectionString");
+        
+        var serviceManager = new ServiceManagerBuilder()
+            .WithOptions(o =>
+            {
+                o.ConnectionString = connectionString;
+            })
+            .BuildServiceManager();
         
         outputblob.Position = 0;
         
@@ -83,10 +97,12 @@ public class UpscaleImage
         _logger.LogInformation("Upscaled blob {newBlobName}, URI: {blob.Uri}", newBlobName, blob.Uri);
 
 
+        var hubContext = await serviceManager.CreateHubContextAsync("myHub", CancellationToken.None);
+        await hubContext.Clients.Client(connectionId).SendAsync("imageProcessed", blob.Uri.ToString());
+        
+        _logger.LogInformation("Notificação enviada para {connectionId}", connectionId);
+
     }
 }
-
-
-builder.Build().Run();
 
 
